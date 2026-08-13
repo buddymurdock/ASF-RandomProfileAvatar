@@ -205,6 +205,8 @@ internal sealed class RandomProfileAvatar : IASF, IBotConnection, IGitHubPluginU
 			return false;
 		}
 
+		// MultipartFormDataContent.Dispose() disposes every part added to it via Add(), so the outer `using` below covers all of these despite the analyzer not tracking that ownership transfer
+#pragma warning disable CA2000
 		using MultipartFormDataContent content = new() {
 			{ new StringContent(imageBytes.Length.ToString(CultureInfo.InvariantCulture)), "MAX_FILE_SIZE" },
 			{ new StringContent("player_avatar_image"), "type" },
@@ -215,6 +217,7 @@ internal sealed class RandomProfileAvatar : IASF, IBotConnection, IGitHubPluginU
 		};
 
 		ByteArrayContent avatarContent = new(imageBytes);
+#pragma warning restore CA2000
 		avatarContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
 		content.Add(avatarContent, "avatar", fileName);
 
@@ -224,12 +227,12 @@ internal sealed class RandomProfileAvatar : IASF, IBotConnection, IGitHubPluginU
 	}
 
 	private static bool TryGetImageFormat(string url, [NotNullWhen(true)] out string? fileName, [NotNullWhen(true)] out string? contentType) {
-		string extension = Path.GetExtension(url).TrimStart('.').ToLowerInvariant();
+		string extension = Path.GetExtension(url).TrimStart('.').ToUpperInvariant();
 
 		(fileName, contentType) = extension switch {
-			"jpg" or "jpeg" => ("avatar.jpg", "image/jpeg"),
-			"png" => ("avatar.png", "image/png"),
-			"gif" => ("avatar.gif", "image/gif"),
+			"JPG" or "JPEG" => ("avatar.jpg", "image/jpeg"),
+			"PNG" => ("avatar.png", "image/png"),
+			"GIF" => ("avatar.gif", "image/gif"),
 			_ => (null, null)
 		};
 
