@@ -139,7 +139,7 @@ internal sealed class RandomProfileAvatar : IASF, IBotConnection, IGitHubPluginU
 			int delayDays = MinDelayInDays == MaxDelayInDays ? MinDelayInDays : Random.Shared.Next(MinDelayInDays, MaxDelayInDays + 1);
 
 			try {
-				await Task.Delay(TimeSpan.FromDays(delayDays), cancellationToken).ConfigureAwait(false);
+				await LongDelayAsync(TimeSpan.FromDays(delayDays), cancellationToken).ConfigureAwait(false);
 			} catch (OperationCanceledException) {
 				break;
 			}
@@ -153,6 +153,23 @@ internal sealed class RandomProfileAvatar : IASF, IBotConnection, IGitHubPluginU
 			} catch (Exception e) {
 				ASF.ArchiLogger.LogGenericException(e);
 			}
+		}
+	}
+
+	// Task.Delay's underlying timer caps out at ~49.7 days (uint.MaxValue-1 ms) - a single
+	// Task.Delay(TimeSpan.FromDays(60)) throws ArgumentOutOfRangeException immediately, which
+	// went unhandled here and crashed the entire ASF process via OnUnobservedTaskException.
+	// Chunking sidesteps the limit for arbitrarily long delays.
+	private static async Task LongDelayAsync(TimeSpan delay, CancellationToken cancellationToken) {
+		TimeSpan chunk = TimeSpan.FromDays(1);
+
+		while (delay > chunk) {
+			await Task.Delay(chunk, cancellationToken).ConfigureAwait(false);
+			delay -= chunk;
+		}
+
+		if (delay > TimeSpan.Zero) {
+			await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 		}
 	}
 
